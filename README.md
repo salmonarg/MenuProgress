@@ -1,5 +1,9 @@
 ## MenuProgress
 
+<div style="text-align: center;">
+<img src="./screenshot.png" style="width: 70%;">
+</div>
+
 ### Overview
 
 A simple menubar progress tracking tool for Apple macOS. Powered by Swift and Cocoa(AppKit).
