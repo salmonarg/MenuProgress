@@ -2,10 +2,7 @@
 
 ### Overview
 
-A simple menubar countdown and countup tool for Apple macOS. Powered by Swift and Cocoa(AppKit).
-
-Add events with a target date and the menubar shows `NAME D-84` (remaining),
-`NAME D+84` (passed) or `NAME D-Day`.
+A simple menubar progress tracking tool for Apple macOS. Powered by Swift and Cocoa(AppKit).
 
 ### Build
 
@@ -26,13 +23,16 @@ chmod +x build.sh
 
 Move `MenuProgress.app` to your `/Applications` folder.
 
+To start it at login, add it in System Settings > General > Login Items.
+
 ### Usage
 
 Click the menubar item:
 
 - Click an event to show it in the menubar.
-- `Add Event...` to add a name and a `YYYY-MM-DD` target date.
-- `Remove Event` to delete one.
+- `Add...` for a name and a target date.
+- `Edit` to change the date of an event.
+- `Remove` to delete one, with confirmation.
 
 Events are stored in `UserDefaults` under `Salmonization.MenuProgress`.
 
