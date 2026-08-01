@@ -1,12 +1,11 @@
 ## MenuProgress
 
-<div style="text-align: center;">
 <img src="./screenshot.png" style="width: 70%;">
-</div>
 
 ### Overview
 
-A simple menubar progress tracking tool for Apple macOS. Powered by Swift and Cocoa(AppKit).
+A simple menubar progress tracking tool for Apple macOS.
+Powered by Swift and Cocoa(AppKit).
 
 ### Build
 
@@ -35,10 +34,22 @@ Click the menubar item:
 
 - Click an event to show it in the menubar.
 - `Add...` for a name and a target date.
-- `Edit` to change the date of an event.
+- `Edit` to change the name or the date of an event.
 - `Remove` to delete one, with confirmation.
+- `Export...` writes all events to a JSON file,
+  `Import...` reads one back and replaces the current events.
 
 Events are stored in `UserDefaults` under `Salmonization.MenuProgress`.
+The import and export format is the same list:
+
+```json
+[
+  {
+    "name": "JLPT",
+    "date": "2026-07-05"
+  }
+]
+```
 
 ### License
 

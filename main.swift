@@ -155,6 +155,12 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDele
         menu.addItem(eventSubmenu(title: "Remove", action: #selector(removeEvent(_:))))
 
         menu.addItem(NSMenuItem.separator())
+        menu.addItem(NSMenuItem(title: "Import...", action: #selector(importEvents), keyEquivalent: ""))
+        let exportItem = NSMenuItem(title: "Export...", action: #selector(exportEvents), keyEquivalent: "")
+        exportItem.isEnabled = !events.isEmpty
+        menu.addItem(exportItem)
+
+        menu.addItem(NSMenuItem.separator())
         menu.addItem(NSMenuItem(title: "Quit", action: #selector(terminate), keyEquivalent: "q"))
     }
 
@@ -219,18 +225,80 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDele
         guard let name = sender.representedObject as? String,
               let index = events.firstIndex(where: { $0.name == name }) else { return }
         let current = dateFormatter.date(from: events[index].date) ?? Date()
-        guard let result = runEventDialog(title: "Edit \(name)", confirm: "Save",
-                                          name: nil, date: current) else { return }
-        events[index].date = dateFormatter.string(from: result.date)
+        guard let result = runEventDialog(title: "Edit Event", confirm: "Save",
+                                          name: name, date: current) else { return }
+        let newName = result.name
+        guard !newName.isEmpty else {
+            warn("Name must not be empty.")
+            return
+        }
+        guard newName == name || !events.contains(where: { $0.name == newName }) else {
+            warn("Event with name '\(newName)' already exists.")
+            return
+        }
+
+        events[index] = Event(name: newName, date: dateFormatter.string(from: result.date))
+        if selectedName == name { selectedName = newName }
+        save()
+        updateTitle()
+    }
+
+    // MARK: - Import / Export
+
+    @objc func exportEvents() {
+        NSApp.activate(ignoringOtherApps: true)
+        let panel = NSSavePanel()
+        panel.nameFieldStringValue = "events.json"
+        panel.allowedFileTypes = ["json"]
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.prettyPrinted]
+        do {
+            try encoder.encode(events).write(to: url)
+        } catch {
+            warn("Export failed: \(error.localizedDescription)")
+        }
+    }
+
+    @objc func importEvents() {
+        NSApp.activate(ignoringOtherApps: true)
+        let panel = NSOpenPanel()
+        panel.allowedFileTypes = ["json"]
+        panel.allowsMultipleSelection = false
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+
+        guard let data = try? Data(contentsOf: url),
+              let imported = try? JSONDecoder().decode([Event].self, from: data) else {
+            warn("Not a valid MenuProgress event file.")
+            return
+        }
+        guard imported.allSatisfy({ daysUntil($0.date) != nil }) else {
+            warn("The file contains a date that is not YYYY-MM-DD.")
+            return
+        }
+
+        // Replacing beats merging: no name-collision rules to invent or explain.
+        let confirm = NSAlert()
+        confirm.messageText = "Import \(imported.count) event(s)?"
+        confirm.informativeText = "This replaces all current events."
+        confirm.addButton(withTitle: "Import")
+        confirm.addButton(withTitle: "Cancel")
+        guard confirm.runModal() == .alertFirstButtonReturn else { return }
+
+        events = imported
+        if !events.contains(where: { $0.name == selectedName }) {
+            selectedName = events.first?.name
+        }
         save()
         updateTitle()
     }
 
     // MARK: - Event dialog
 
-    func runEventDialog(title: String, confirm: String, name: String?, date: Date) -> (name: String, date: Date)? {
+    func runEventDialog(title: String, confirm: String, name: String, date: Date) -> (name: String, date: Date)? {
         let width: CGFloat = 320
-        let height: CGFloat = name == nil ? 136 : 170
+        let height: CGFloat = 170
         let panel = NSPanel(contentRect: NSRect(x: 0, y: 0, width: width, height: height),
                             styleMask: [.titled, .closable], backing: .buffered, defer: false)
         panel.title = ""
@@ -254,14 +322,10 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDele
         datePicker.setFrameOrigin(NSPoint(x: 20, y: 58))
         content.addSubview(datePicker)
 
-        var nameField: NSTextField?
-        if let name = name {
-            let field = NSTextField(frame: NSRect(x: 20, y: 92, width: width - 40, height: 24))
-            field.placeholderString = "Name"
-            field.stringValue = name
-            content.addSubview(field)
-            nameField = field
-        }
+        let nameField = NSTextField(frame: NSRect(x: 20, y: 92, width: width - 40, height: 24))
+        nameField.placeholderString = "Name"
+        nameField.stringValue = name
+        content.addSubview(nameField)
 
         let confirmButton = NSButton(frame: NSRect(x: width - 92, y: 20, width: 80, height: 24))
         confirmButton.title = confirm
@@ -271,14 +335,14 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDele
         confirmButton.action = #selector(dialogConfirm)
         content.addSubview(confirmButton)
 
-        panel.initialFirstResponder = nameField ?? datePicker
+        panel.initialFirstResponder = nameField
         panel.center()
         NSApp.activate(ignoringOtherApps: true)
         let response = NSApp.runModal(for: panel)
         panel.orderOut(nil)
 
         guard response == .OK else { return nil }
-        return (nameField?.stringValue.trimmingCharacters(in: .whitespaces) ?? "", datePicker.dateValue)
+        return (nameField.stringValue.trimmingCharacters(in: .whitespaces), datePicker.dateValue)
     }
 
     func windowShouldClose(_ sender: NSWindow) -> Bool {
